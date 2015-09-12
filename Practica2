@@ -1,0 +1,128 @@
+# 1.A
+Sem detector=1;
+
+Procedure persona(i=1..N) begin
+	P(detector);
+	#se registra;
+	V(detector);
+end
+
+#1.B
+Sem detector=3;
+
+Procedure personas(i=1..N)
+	P(detector);
+	#se registran;
+	V(detector);
+end
+
+
+#2
+Sem recursos = 1;
+Sem disponibles = 5;
+Queue cola[5];
+Recurso elem = new Recurso();
+
+Procedure usar_recursos{
+	while(true){
+			P(disponibles);
+			P(recursos);
+			elem = cola.pop()
+			V(recursos);	
+			#hago lo que teng que hacer con el recurso
+			P(recurso);
+			cola.push(elem);
+			V(recurso);
+			V(disponibles);
+	}
+}
+
+
+#3
+Sem profe = 0;
+Sem alumnos[40] = [0];
+Sem entrega = 1;
+int idAlumno = -1;
+int examen[40] = [0];
+int rindiendo = 40;
+
+Procedure alumno[id=1..40]{
+	P(alumnos[id]); /*expera a que le den el examen para hacer*/
+	while(examen[id] < 4){ /*con un 4 se aprueba*/
+		delay(random); /*hace el examen*/
+		P(entrega); /*controla que se entregue de a un examen*/
+		idAlumno = id; /*variable compartida para que la profesora sepa el id del alumno que entrega*/
+		V(profe); /*despierta a la profesora para que corrija*/
+		P(alumnos[id]); /*se pone a dormir esperando al nota*/
+		}
+}
+
+Procedure profesora{
+	for (i=1 to 40)
+		examen[i] = repartirExamen(); /*setea los valores en 0, permitiendo empezar*/
+		V(alumnos[i]); /*va despertando a los alumnos para que hagan el examen*/
+	P(profe); /*espera que un alumno la despierte para corregir un examen*/
+	while(rindiendo != 0){ /*si quedan alumnos por corregir en el aula*/
+		examen[idAlumno] = ponerNota /*setea la nota, con un random entre 1 y 10*/
+		if(examen[idAlumno] >= 4){ /*evalua si el alumno aprobo*/
+			rindiendo --; /*si aprobo, resta al cantidad de alumnos rindiendo*/
+		}
+		V(alumnos[idAlumno]); /*despierta al alumno que acaba de corregir*/
+		V(entrega); /*deja que otro alumno entregue su examen*/
+		P(profe); /*espera que un alumno la despierte para corregir un examen*/
+	}
+}
+		
+
+#4
+Sem elegirTarea = 1;
+Sem esperando = 0;
+Sem pasarGrupo = 1;
+Sem profesor = 0;
+Sem esperarNota[10] = [0];
+array grupos[10] = [0];
+array ordenGrupo[10] = [0];
+int cantidad = 50;
+int numGrupo = 0;
+
+Procedure alumno[id=1..50]{
+	int numTarea /*numero de tarea que le toco al alumno*/
+	P(elegirTarea);
+	numTarea = elegir(); /*elige la tarea*/
+	if(cantidad == 0){ /*si es el ultimo, despierta a todos*/
+		for(i=1 to 50){
+			V(esperando); /*despierta a todos, incrementando 50 veces a V(esperando)*/
+		}
+	}
+	else{
+		cantidad --; /*resta la cantidad de alumnos que faltan elegir tarea*/
+		V(elegirTarea); /*libera el semaforo, para que otro alumno pueda elegir una tarea*/
+		P(esperando); /*se duerme hasta que todos tengan una tarea*/
+	}
+	/*aca, todos pueden comenzar la tarea, al mismo tiempo*/
+	delay.ramdom(); /*hacen la tarea*/
+	P(pasarGrupo); /*exclusion mutua, para pasarle el examen al profesor*/
+	numGrupo = numTarea; /*setea la variable compartida de su numero de grupo para pasarselo al profesor*/
+	V(profesor) /*despierta al profesor*/
+	P(esperarNota[numGrupo]); /*se pone a dormir junto a su grupo, esperando que todo su grupo termine*/
+	^ordenGrupo[numGrupo]; /*lee la nota que le puso el profesor*/
+}
+
+Procedure profesor{
+	int orden = 0; /*lleva el control del orden de entrega de grupos*/
+	P(profesor); /*cuando un alumno entrega, el profesor pasa a corregir*/
+	while(orden < 10){ /*mientras no entreguen todos los alumnos de todos los grupos*/
+		if (grupos[numGrupo] == 4){ /*pregunto si es el ultimo del grupo en entregar*/
+			orden ++; /*se agisna un numero de orden al grupo*/
+			ordenGrupo[numGrupo] = orden; /*se lo comparte en la variable comaprtida*/
+			for(i=1 to 5)
+				V(esperarNota[numGrupo]) /*se despierta a todos los de un grupo especifico*/
+		}
+		else{ /*si no es el ultimo del grupo*/
+			grupos[numGrupo] ++; /*se suma la entrega de una persona que no es el ultimo*/
+		}
+		V(pasarGrupo); /*deja que otra persona entregue*/
+		if (orden < 10) /*para que no se quede dormiendo cuando todos aprobaron*/
+			P(profesor); /*espera a que le entreguen un trabajo*/
+	}
+}
