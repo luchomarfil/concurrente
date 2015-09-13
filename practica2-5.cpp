@@ -2,12 +2,12 @@ Sem   colaDisponible = 1; //semaforo para controlar exclusion mutua para acceso 
 Queue cola;
 Sem   timer[N] = {0} //inicializados en cero
 Sem   consultarAyudante = 0;
-Sem   esperaConsulta[N] = 0;
+Sem   esperaConsulta[N] = {0};
 Sem   datosGenerales = 1; // Semaforo de exlusion mutua para variable compartida por todos los procesos y todos los ayudantes
-Sem   datos[N] = 0; //Semaforo para proteger interferencias entre Ayudantes y Timers para un Alumno
+Sem   datos[N] = {1}; //Semaforo para proteger interferencias entre Ayudantes y Timers para un Alumno
 int evento[N] = 0; // arreglo de estados
 bool correcto[N]=false; //arreglo para el resultado del ejercicio de la practica
-
+int cantAlumnos = N;
 
 
 process Alumno(id=1..N){
@@ -18,34 +18,37 @@ process Alumno(id=1..N){
     V(colaDisponible);
     V(consultarAyudante);
     P(esperaConsulta[id]);
-//Se duerme hasta que lo despierte o el ayudante para corregir, o lo despierte
-// el timer para avisarle que se le acabo el tiempo
+    //Se duerme hasta que lo despierte o el ayudante para corregir, o lo despierte
+    // el timer para avisarle que se le acabo el tiempo
     if(evento[id]0==1){ //esto es si lo desperto el timer
-        //se retira del aula
-        P(datosGenerales);
-        cantAlumnos--;
-        V(datosGenerales);
-        V(datos[id]);
-}
-else{
-    while(!correcto[id}){
-        delay(Random); //corrige la tarea
-        P(colaDisponible);
-        cola.push(id);
-        V(colaDisponible);
-        V(datos[id]);
-        P(esperaConsulta[id]);
+            //se retira del aula
+            P(datosGenerales);
+            cantAlumnos--;
+            V(datosGenerales);
+            V(datos[id]);
     }
-    //se retira del aula
-    P(datosGenerales); //pide exclusion mutua para modificar la cantidad de alumnos
-    cantAlumnos--;
-    if(cantAlumnos==0){ // si es el ultimo alumno, despierta a todos los ayudantes para que se vayan
-      for i=1 to A{
-        V(consultarAyudante);
-      }
+    else{
+        while(!correcto[id}){
+            V(datos[id]); // deja de usar los datos que le puede pasar el ayudante que corrigio
 
-    }
-    V(datosGenerales); //libera el bloqueo sobre las variables compartidas
+            delay(Random); //corrige la tarea
+            P(colaDisponible); //pide bloqueo sobre la cola
+            cola.push(id);
+            V(colaDisponible);
+            V(consultarAyudante);
+            
+            P(esperaConsulta[id]); // le avisa a los ayudante que esta nuevamente la tarea disponible
+        }
+        //se retira del aula
+        P(datosGenerales); //pide exclusion mutua para modificar la cantidad de alumnos
+        cantAlumnos--;
+        if(cantAlumnos==0){ // si es el ultimo alumno, despierta a todos los ayudantes para que se vayan
+          for i=1 to A{
+            V(consultarAyudante);
+          }
+
+        }
+        V(datosGenerales); //libera el bloqueo sobre las variables compartidas
 
 }
 
@@ -73,6 +76,7 @@ process Ayudante(id=1..A){
       P(colaDisponible); //espero acceso exclusivo a la cola
       cola.pop(idProcesoActual);
       V(colaDisponible); //libero la cola
+
       P(datos[id]); // bloqueo sobre id para evitar interferencias con el timer
       correcto[idProcesoActual] = corregir();
       evento[idProcesoActual] = 2; //marca como estado que el ayudante atendio el alumno
