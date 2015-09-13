@@ -36,7 +36,7 @@ process Alumno(id=1..N){
             cola.push(id);
             V(colaDisponible);
             V(consultarAyudante);
-            
+
             P(esperaConsulta[id]); // le avisa a los ayudante que esta nuevamente la tarea disponible
         }
         //se retira del aula
