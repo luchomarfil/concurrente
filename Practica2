@@ -242,15 +242,13 @@ Procedure empleado(id = 1..E){
 			cantidadMaxTareas = tareas; //actualizo el maximo de tareas
 		}
 		V(calcularMaxTareas); //libero la exclusion
-		if (tareasPendientes != 0){ //se pone esta condicion para que el ultimo no se quede dormido
-			P(agarrarTarea); //espera a que le toque elegir nuevamente una tarea
-		}
+		P(agarrarTarea); //espera a que le toque elegir nuevamente una tarea
 	}
-	//el ultimo que hizo una tarea salio del while
-	for (i=1 to E){
-		V(agarrarTarea); //el ultimo que hizo una tarea despierta a todos los que quedaron esperando mas tareas
-	}
+	V(agarrarTarea); //libera la exclusion cuando sale del while
+	//
+	P(calcularMaxTareas)
 	if (tareas == cantidadMaxTareas){ //si tienen el maximo de tareas realizadas
+		V(calcularMaxTareas);
 		obtenerpremio(); //les dan el premio :)
 	}
 }
