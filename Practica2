@@ -126,3 +126,131 @@ Procedure profesor{
 			P(profesor); /*espera a que le entreguen un trabajo*/
 	}
 }
+
+
+#5
+Sem   colaDisponible = 1; //semaforo para controlar exclusion mutua para acceso a la cola
+Queue cola;
+Sem   timer[N] = {0} //inicializados en cero
+Sem   consultarAyudante = 0;
+Sem   esperaConsulta[N] = {0};
+Sem   datosGenerales = 1; // Semaforo de exlusion mutua para variable compartida por todos los procesos y todos los ayudantes
+Sem   datos[N] = {1}; //Semaforo para proteger interferencias entre Ayudantes y Timers para un Alumno
+int evento[N] = 0; // arreglo de estados
+bool correcto[N]=false; //arreglo para el resultado del ejercicio de la practica
+int cantAlumnos = N;
+
+process Alumno(id=1..N){
+    delay(Random); //hace la tarea el alumno
+    P(colaDisponible); //exclusion para agregarse a la cola, y setear el timer
+    cola.push(id); //se agrega a la cola
+    V(timer[id]); //habilita a su timer
+    V(colaDisponible); //libera la exclusion
+    V(consultarAyudante); //le avisa a los ayudantes que esta en la cola
+    P(esperaConsulta[id]);
+    //Se duerme hasta que lo despierte o el ayudante para corregir, o lo despierte
+    // el timer para avisarle que se le acabo el tiempo
+    if(evento[id]==1){ //esto es si lo desperto el timer
+            //se retira del aula
+            P(datosGenerales); //exclusion para decrementar la cantidad de alumnos
+            cantAlumnos--;
+            V(datosGenerales); //libera la exclusion
+            V(datos[id]); //deja de usar los datos
+    }
+    else{
+        while(!correcto[id}){
+            V(datos[id]); // deja de usar los datos que le puede pasar el ayudante que corrigio
+            delay(Random); //corrige la tarea
+            P(colaDisponible); //pide bloqueo sobre la cola
+            cola.push(id);
+            V(colaDisponible);
+            V(consultarAyudante);
+            P(esperaConsulta[id]); // le avisa a los ayudante que esta nuevamente la tarea disponible
+        }
+        //se retira del aula
+        P(datosGenerales); //pide exclusion mutua para modificar la cantidad de alumnos
+        cantAlumnos--;
+        if(cantAlumnos==0){ // si es el ultimo alumno, despierta a todos los ayudantes para que se vayan
+          for i=1 to A{
+            V(consultarAyudante);
+          }
+        }
+        V(datosGenerales); //libera el bloqueo sobre las variables compartidas
+}
+
+process Timer(id=1..N){
+    P(timer[id]); // se duerme a esperar que el alumno termine la tarea y se ponga en la cola
+    delay(1000 * 60 * 15); // 15 minutos periodo de espera
+    P(datos[id]); // bloquea la informacion sobre el proceso para evitar que el ayudante comience a corregirlo
+    if(evento[id]!=2) // si no fue corregido ya por el ayudante
+    {
+      evento[id]=1; //marca que el proceso deberia abandonar la cola
+      V(esperaConsulta[id]); //despierta al proceso para que lea el resultado
+    }
+}
+
+process Ayudante(id=1..A){
+    int idProcesoActual;
+    P(consultarAyudante); //espera hasta que lo despierte un alumno
+    P(datosGenerales); //cuando lo despierta bloquea la variable cantAlumnos para ver si queda alguno en la habitacion
+    While(cantAlumnos>0){
+      V(datosGenerales); //libero la variable compartida porque ya la lei
+      P(colaDisponible); //espero acceso exclusivo a la cola
+      cola.pop(idProcesoActual);
+      V(colaDisponible); //libero la cola
+      P(datos[id]); // bloqueo sobre id para evitar interferencias con el timer
+      correcto[idProcesoActual] = corregir();
+      evento[idProcesoActual] = 2; //marca como estado que el ayudante atendio el alumno
+      V(esperaConsulta[idProcesoActual]); //despierta al alumno para que busque el resultado
+      P(consultarAyudante); // se duerme el ayudante, hasta q el alumno lo vuelva a despertar
+      P(datosGenerales);    // cuando se despierta pide bloqueo para leer la cantidad de alumnos sin interferencias
+    }
+}
+
+
+#6
+int tareasPendientes = T() //cantidad de tareas pendientes por hacer
+Sem esperandoATodos = 0; //barrera que frena a los empleados hasta que llegan todos
+int cantidadEmpleados = 0; //suma la cantidad de empleados que van llegando
+array cantidadTareasPorEmpleado[E] = 0; //arreglo que contabiliza las tareas de cada empleado
+Sem agarrarTarea = 1; //semaforo para agarrar de a una tarea a la vez
+Sem calcularMaxTareas = 1; //semaforo para acceder de forma exclusiva a al variable cantidadMaxTareas
+int cantidadMaxTareas = 0; //lleva el maximo de tareas realizadas por un empleado
+
+Procedure empleado(id = 1..E){
+	int tareas = 0; //tareas locales de cada empleado
+	delay(random); //tiempo que tardan en llegar al trabajo
+	P(sumarEmpleado); //esclusion para modificar la variable
+	cantidadEmpleados ++; //llego un empleado mas
+	V(sumarEmpleado); //libera exclusion
+	if (cantidadEmpleados == E){ //pregunta si es el ultimo
+		for (i=1 to E){
+			V(esperandoATodos); //despierta a todos, ya que es el ultimo en llegar
+		}
+	}
+	else{ //si no es el ultimo
+		P(esperandoATodos); //se duerme hasta que el ultimo despierte a todos
+	}
+	//ya llegaron todos a trabajar a esta altura
+	P(agarrarTarea); //semaforo que controla que solo una persona agarre una tarea
+	while (tareasPendientes > 0){
+		tareasPendientes --; //resta las tareas pendientes por hacer
+		V(agarrarTarea); //libera la exclusion
+		delay(random); //hace la tarea elegida
+		P(calcularMaxTareas) //esclusion para trabajar sobre cantidadMaxTareas
+		if (tareas > cantidadMaxTareas){ //pregunto si soy el que mas tareas tiene
+			cantidadMaxTareas = tareas; //actualizo el maximo de tareas
+		}
+		V(calcularMaxTareas); //libero la exclusion
+		if (tareasPendientes != 0){ //se pone esta condicion para que el ultimo no se quede dormido
+			P(agarrarTarea); //espera a que le toque elegir nuevamente una tarea
+		}
+	}
+	//el ultimo que hizo una tarea salio del while
+	for (i=1 to E){
+		V(agarrarTarea); //el ultimo que hizo una tarea despierta a todos los que quedaron esperando mas tareas
+	}
+	if (tareas == cantidadMaxTareas){ //si tienen el maximo de tareas realizadas
+		obtenerpremio(); //les dan el premio :)
+	}
+}
