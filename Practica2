@@ -216,6 +216,8 @@ array cantidadTareasPorEmpleado[E] = 0; //arreglo que contabiliza las tareas de 
 Sem agarrarTarea = 1; //semaforo para agarrar de a una tarea a la vez
 Sem calcularMaxTareas = 1; //semaforo para acceder de forma exclusiva a al variable cantidadMaxTareas
 int cantidadMaxTareas = 0; //lleva el maximo de tareas realizadas por un empleado
+Sem barrera = 0;
+Sem finalizacion = 1; //semaforo para esclusion de la variable finalizacion
 
 Procedure empleado(id = 1..E){
 	int tareas = 0; //tareas locales de cada empleado
@@ -246,9 +248,91 @@ Procedure empleado(id = 1..E){
 	}
 	V(agarrarTarea); //libera la exclusion cuando sale del while
 	//
+	P(finalizacion); //exclusion para contar cuantos ya finalizaron de procesar y salieron del while
+	esperandoATodos --;
+  if(finalizaron == 0){ //si es el ultimo despierta a todos
+	  for (i=1 to E){
+    	V(barrera); //despierto a todos los procesos dormidos que son E
+      }
+   }
+  V(finalizacion); //libero lectura
+  P(barrera); //duermo hasta que el ultimo despierte a todos
 	P(calcularMaxTareas)
 	if (tareas == cantidadMaxTareas){ //si tienen el maximo de tareas realizadas
 		V(calcularMaxTareas);
 		obtenerpremio(); //les dan el premio :)
 	}
 }
+
+
+#7
+Queue cola;
+array cantidadTareasPorGrupo[N] = X; //arreglo de cantidad de tareas por grupo
+array cantidadQueTermianaron[N] = 0; //contabiliza los operarios que ya terminaron sus tareas, por grupo
+cantGrupo[N] = 0; //indica la cantidad de tareas que hizo cada grupo
+Sem e_encolarse = 1; //semaforo de exclusion para encolarse cuando van llegando los operarios
+Sem b_operarios[M] = 0; //semaforo privado que hace de barrera invidial de cada operario cuando llega
+Sem b_llegoOperario= 0; //semaforo que se usa para avisarle al proc. grupo que llego un operario
+Sem e_tomarElemento[N] = 1; //semaforo privado por grupo, que deja tomar de aun elemento por cada grupo que hay
+Sem b_esperandoCompañeros[N] = 0; //barrera para que todos los del mismo grupo se vayan a la vez
+Sem e_cantidadPorGrupo[N] = 1; //arreglo para exclusion de sumatoria de operarios que llegaron
+numGrupo[M] = 0; //arreglo que tiene el numero de grupo de cada operario
+
+Procedure operario(id=1..M){
+	int numGrupo;
+
+	delay(random); //delay que simula el tiempo que tardan en ellegar los operarios
+	P(e_encolarse); //exclusion para operar sobre la cola de operarios
+	cola.push(id);
+	V(e_encolarse); //libera la exclusion
+	V(b_llegoOperario); //le avisa al proc. que maneja los grupos que llego
+	P(b_operarios[id]); //se duerme hasta que este armado su grupo
+	//se desperto el grupo de 5 personas
+	numGrupo = numGrupo[id]; //se queda con su numero de grupo en su variable local
+	P(e_tomarElemento[numGrupo]); //pide la exclusion para pedir una tarea a nivel de grupo
+	while(cantGrupo[numGrupo] < cantidadTareasPorGrupo[numGrupo]){
+		cantGrupo[numGrupo] ++; //suma una tarea realizada
+		V(e_tomarElemento[numGrupo]); //libera la exclusion
+		delay(random); //hace la tarea
+		P(e_tomarElemento[numGrupo]); //espera a hacer otra tarea (si es que quedan)
+	}
+	V(e_tomarElemento[numGrupo]) //el primero que le de falta la condicion va liberando la exclusion mutua
+	P(e_cantidadPorGrupo[numGrupo]); //excusion para incrementar los que van llegando por grupo
+	cantidadQueTermianaron[numGrupo] ++;
+	if (cantidadQueTermianaron[numGrupo] == 5){ //si es el ultimo
+		for (i=1 to 5){
+			V(b_esperandoCompañeros[numGrupo]); //despierta a todos
+		}
+	}
+	V(e_cantidadPorGrupo[numGrupo]); //libera la exclusion del arreglo
+	P(b_esperandoCompañeros[numGrupo]); //se duermen hasta que llegue el ultimo y los despierte
+	//cuando llegan aca significa que ya llego todo el grupo, por ende se van..
+}
+
+Procedure jefe(){
+	int grupoActual = 1;
+	int cantidad = 0; //suma la cantidad de operarios que saca de la cola, hasta llegar a 5
+	int operador; //variable auxiliar que se guarda el id del operador que saca de la cola
+	int totalOperarios = 0; //contabiliza los operarios que van llegando
+	array grupo[5] = 0; // arreglo de operarios de a 5
+	while (totalOperarios < M){
+		P(b_llegoOperario); //cuando llega un operario se despierta
+		P(e_encolarse); //pide la exclusion para trabajar sobre la cola
+		operador = cola.pop(); //saca a un operario
+		V(e_encolarse); //libera la exclusion
+		cantidad ++; //se incrementa la cantidad de operarios que llegaron
+		grupo[cantidad] = operador; //se guarda el id del operador en el arreglo de 5
+		numGrupo[operador] = grupoActual; //guarda en el arreglo global, el numero de grupo de para operario
+		if (cantidad == 5){ //si es el 5to
+			grupoActual ++; //cambia el numero de grupo actual
+			cantidad = 0; //resetea la cantidad para la llegada del nuevo grupo
+			for(i=1 to 5){
+				V(b_operarios[grupo[i]]) //se despierta a los 5 operarios del grupo
+			}
+		}
+	}
+}
+
+
+
+#8
