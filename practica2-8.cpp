@@ -5,18 +5,20 @@ Sem espera[N] = 0;      //Semaforo para que cada camion espere o el timer u otro
 Sem datos[N]  = 1;      //Semaforo para compartir datos de forma excluyente entre Camion que despierta y Timer
 int estadoCamion[N] = {0}; //Estado interno del camion, se refleja si el camion fue despertado por un
                            //Camion o por el timer. 1=Abandona por timer, 2=Descarga cereal, 0=no Seteado
+bool descargando = false;
 
 
 Process Camion(id=1..N){
     int idSiguiente = 0; //cada camion sabe a quien va a despertar
     P(colaDisponible); //pide acceso por exclusion mutua a la cola
-    if(!empty(cola)){  //si no es el primer camion en llegar
+    if(!empty(cola) || descargando){  //si no es el primer camion en llegar o no hay alguno descargando
         cola.push(id); //se agrega a la lista de espera
         V(colaDisponible); //libera el acceso a la cola
         V(timer[id]); //inicia el timer de 2hs
         P(espera[id]); //se duerme por condicion hasta que lo despierte o un camion o un timer
     }
     else{ //si es el primer camión en llegar, pasa derecho.
+      descargando=true;
       V(colaDisponible); //Libera la cola para que se puedan seguir encolando camiones
       P(datos[id]); //Bloquea para evitar interferencias con el timer, va a leer datos del estado
     }
@@ -33,6 +35,7 @@ Process Camion(id=1..N){
     }
 
     P(colaDisponible); //pide acceso a la cola para despertar a otro camion
+    descargando = false;
     if(!empty(cola)){ //si hay otro camion en la cola
         cola.pop(idSiguiente); //saca el camion de la cola para saber su process id
         P(datos[idSiguiente]); //pide exclusion mutua para intercambiar datos con el camion
