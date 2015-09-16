@@ -34,9 +34,9 @@ Process Camion(id=1..N){
 
     P(colaDisponible); //pide acceso a la cola para despertar a otro camion
     if(!empty(cola)){ //si hay otro camion en la cola
+        cola.pop(idSiguiente); //saca el camion de la cola para saber su process id
         P(datos[idSiguiente]); //pide exclusion mutua para intercambiar datos con el camion
                                //sin interferencias del timer
-        cola.pop(idSiguiente); //saca el camion de la cola para saber su process id
         V(colaDisponible);     //libera la cola, para que sigan llegando camiones o la pueda usar algun timer
         if(estado[idSiguiente]==0){ //si todavia el timer no la seteo
           estado[idSiguiente]=2; //setea el estado Descarga Cereal
