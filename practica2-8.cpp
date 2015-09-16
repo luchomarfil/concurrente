@@ -52,16 +52,16 @@ Process Camion(id=1..N){
 }
 
 Process Timer(id=1..N){
-  P(timer[id]); //duerme el proceso hasta que la llegada de un camion lo despierte
-  delay(1000*60*60*2); //espera de 2hs para avisar al camion de abandonar
-  P(datos[id]); //bloquea con exclusion mutua para evitar interferencia con otro
-                //camion que quiera modificar estado de su anterior camion
-  if(estado[id]==0){ //si el estado aun no fue seteado por su camion anterior
-    estado[id]=1; //le indica que no debe descargar cereal
-  }
-  V(espera[id]); //despierta al camion
-  //el camion es quien va a levantar la exclusion de P(datos[id]), de esta maneras
-  //se evita que antes que despierte el camion, lo despierte otro camion.
-  //Entonces el camion despertado por el timer, libera la exclusion, luego de leer
-  //el estado seteado por el timer, y se asegura de q la info no fue pisada por otro camion
+    P(timer[id]); //duerme el proceso hasta que la llegada de un camion lo despierte
+    delay(1000*60*60*2); //espera de 2hs para avisar al camion de abandonar
+    P(datos[id]); //bloquea con exclusion mutua para evitar interferencia con otro
+                  //camion que quiera modificar estado de su anterior camion
+    if(estado[id]==0){ //si el estado aun no fue seteado por su camion anterior
+      estado[id]=1; //le indica que no debe descargar cereal
+    }
+    V(espera[id]); //despierta al camion
+    //el camion es quien va a levantar la exclusion de P(datos[id]), de esta maneras
+    //se evita que antes que despierte el camion, lo despierte otro camion.
+    //Entonces el camion despertado por el timer, libera la exclusion, luego de leer
+    //el estado seteado por el timer, y se asegura de q la info no fue pisada por otro camion
 }
