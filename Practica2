@@ -1,4 +1,4 @@
-# 1.A
+################################################## 1.A###########################################################
 Sem detector=1;
 
 Procedure persona(i=1..N) begin
@@ -17,7 +17,8 @@ Procedure personas(i=1..N)
 end
 
 
-#2
+
+#################################################2##############################################################
 Sem recursos = 1;
 Sem disponibles = 5;
 Queue cola[5];
@@ -38,7 +39,8 @@ Procedure usar_recursos{
 }
 
 
-#3
+
+###################################################3############################################################
 Sem profe = 0;
 Sem alumnos[40] = [0];
 Sem entrega = 1;
@@ -46,7 +48,7 @@ int idAlumno = -1;
 int examen[40] = [0];
 int rindiendo = 40;
 
-Procedure alumno[id=1..40]{
+Procedure alumno(id=1..40){
 	P(alumnos[id]); /*expera a que le den el examen para hacer*/
 	while(examen[id] < 4){ /*con un 4 se aprueba*/
 		delay(random); /*hace el examen*/
@@ -72,9 +74,10 @@ Procedure profesora{
 		P(profe); /*espera que un alumno la despierte para corregir un examen*/
 	}
 }
-		
+	
 
-#4
+
+###################################################4###########################################################
 Sem elegirTarea = 1;
 Sem esperando = 0;
 Sem pasarGrupo = 1;
@@ -85,7 +88,7 @@ array ordenGrupo[10] = [0];
 int cantidad = 50;
 int numGrupo = 0;
 
-Procedure alumno[id=1..50]{
+Procedure alumno(id=1..50){
 	int numTarea /*numero de tarea que le toco al alumno*/
 	P(elegirTarea);
 	numTarea = elegir(); /*elige la tarea*/
@@ -128,7 +131,8 @@ Procedure profesor{
 }
 
 
-#5
+
+####################################################5###########################################################
 Sem   colaDisponible = 1; //semaforo para controlar exclusion mutua para acceso a la cola
 Queue cola;
 Sem   timer[N] = {0} //inicializados en cero
@@ -208,7 +212,8 @@ process Ayudante(id=1..A){
 }
 
 
-#6
+
+####################################################6##########################################################
 int tareasPendientes = T() //cantidad de tareas pendientes por hacer
 Sem esperandoATodos = 0; //barrera que frena a los empleados hasta que llegan todos
 int cantidadEmpleados = 0; //suma la cantidad de empleados que van llegando
@@ -265,7 +270,8 @@ Procedure empleado(id = 1..E){
 }
 
 
-#7
+
+######################################################7#########################################################
 Queue cola;
 array cantidadTareasPorGrupo[N] = X; //arreglo de cantidad de tareas por grupo
 array cantidadQueTermianaron[N] = 0; //contabiliza los operarios que ya terminaron sus tareas, por grupo
@@ -315,7 +321,7 @@ Procedure jefe(){
 	int operador; //variable auxiliar que se guarda el id del operador que saca de la cola
 	int totalOperarios = 0; //contabiliza los operarios que van llegando
 	array grupo[5] = 0; // arreglo de operarios de a 5
-	while (totalOperarios < M){
+	while (totalOperarios < M){ //mientras haya operarios
 		P(b_llegoOperario); //cuando llega un operario se despierta
 		P(e_encolarse); //pide la exclusion para trabajar sobre la cola
 		operador = cola.pop(); //saca a un operario
@@ -335,4 +341,53 @@ Procedure jefe(){
 
 
 
-#8
+###################################################8##############################################################
+Queue cola;
+cantidadCamiones = N;
+Sem usarCola = 1; //semaforo para acceder a la cola exclusivamente
+Sem timer[N] = 0; //semaforo privado para avisarle al timer que debe empezar a contar el tiempo
+Sem esperaDescargar[N] = 0; //no deja que sigan hasta que salgan de la cola y sea y su turno
+array estado[N] = 0; //arreglo de estados del camion. 0 = esperando, 1 = pasaron los 20 minutos
+Sem verificarEstado[N] = 1; //semaforo de exclusion para modificar y leer la varable de estado de cada camion
+
+Procedure camion(id=1..N){
+	int self;
+	int proximo;
+	delay(random); //simula el tiempo de llegada de cada camion
+	P(usarCola); //usa esclusion para hacer el push
+	cola.push(id); //se mete en la cola, simulando una cola de camiones
+	V(usarCola); //libera la exclusion de la cola
+	V(timer[id]); //habilita al timer a que setee su espera
+	P(cantCamiones); //exclusion para preguntar sobre la variable
+	if (cantidadCamiones != N){ //pregunto si NO es el primer camion, porque nadie puede despertar al primero
+		V(cantCamiones); //libero la exclusion
+		P(esperaDescargar[id]); //espera a que sea su turno, o pasen las 2 horas
+	}
+	//el proceso fue despertado a esta altura
+	P(usarCola); //pido la exclusion para sacarme de la cola a mi mismo
+	self = cola.pop; //me saco de la cola
+	V(usarCola); //libero la esclusion
+	P(cantCamiones); //pido la exclusion para restar un camion a la cantidad de camiones q faltan
+	cantidadCamiones --;
+	V(cantCamiones); //libero la exclusion
+	P(verificarEstado[id]); //pido la exclusion para preguntar por el estado
+	if (estado[id] == 0){ //si estado = 0, significa que NO me desperto el timer
+		estado[id] = 2; //2 = descargando camion
+		V(verificarEstado[id]); //libero la exclusion
+		delay(random); //descarga el camion
+		if (cantidadCamiones != 0){ //pregunto si NO es el ultimo camion que falta descargar
+			P(usarCola); //pido exclusion de la cola
+			proximo = cola.top; //me guardo al proximo en una variable, sin sacarlo de la cola
+			V(esperaDescargar[proximo]); //despierto al proximo camion en la cola
+		}
+	}
+}
+
+Procedure timer(id=1..N){
+	P(timer[id]); //espera a que un camion despierte su timer
+	delay(hour(2)); //hace el delay de 2 horas
+	P(verificarEstado[id]); //pide la esclusion para ver el estado del camion
+	if (estado[id] == 0){ //si el estado es 0, significa que todavia no descargo, por ende debe irse de la cola
+		estado[id] = 1; // 1 = debe irse de la cola
+	}
+
